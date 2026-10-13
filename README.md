@@ -134,10 +134,18 @@ The following are the supported token types along with their required parameters
    ```js
    {
        "tokenType": "chat",
-       "uid": "your-uid", // optional: for generating a user-specific chat token
+       "uid": "your-Unity-Authentication-PlayerId",
        "expire": 3600 // optional: expiration time in seconds (default: 3600)
    }
    ```
+
+   Send `Authorization: Bearer <Unity Authentication access token>` with this
+   request. The service validates the player ID with Unity Authentication,
+   converts it to the lowercase Agora Chat username, creates that user if
+   needed, and then returns the user-scoped Chat token. Configure
+   `UNITY_PROJECT_ID` and `CHAT_REST_HOST` (the HTTPS REST host assigned to
+   the Chat app) on the server. The App Certificate and app token stay on the
+   server. Registration failure prevents Chat token issuance.
 
 ### Response
 
@@ -222,26 +230,12 @@ response:
 
 ### Chat Tokens ###
 
-#### endpoint structure ####
-
-app privileges:
-```
-chat/app/?expiry=3600
-```
-
-user privileges:
-```
-/chat/account/:chatid/?expiry=3600
-```
-
-`expiry` is an optional parameter for both.
-
-response:
-``` json
-{
-  "chatToken":"007chat-token-djfkaljdla"
-} 
-```
+Use `POST /getToken` with `tokenType: "chat"`, a Unity Authentication
+`PlayerId` in `uid`, and the player's Unity Authentication access token in
+the `Authorization` header. The service checks or creates the Agora Chat user
+before issuing a token. The previous public `/chat/app/` and
+`/chat/account/:chatid/` routes are disabled because they exposed privileged
+or impersonation-capable tokens.
 
 ## Contributions
 

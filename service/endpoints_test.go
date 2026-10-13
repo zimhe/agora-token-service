@@ -17,14 +17,14 @@ func TestGetTokenValidAndInvalid(t *testing.T) {
 		{"/getToken", http.StatusOK, []byte(`{"tokenType": "rtc", "channel": "channel123", "role": "publisher", "uid": "user123", "expire": 3600}`)},
 		{"/getToken", http.StatusOK, []byte(`{"tokenType": "rtm", "uid": "user456", "expire": 1800}`)},
 		{"/getToken", http.StatusOK, []byte(`{"tokenType": "rtm", "uid": "user456", "expire": 1800, "channel": "test"}`)},
-		{"/getToken", http.StatusOK, []byte(`{"tokenType": "chat", "uid": "user789", "expire": 900}`)},
+		{"/getToken", http.StatusUnauthorized, []byte(`{"tokenType": "chat", "uid": "user789", "expire": 900}`)},
 		{"/getToken", http.StatusBadRequest, []byte(`{"channel": "channel456", "role": "subscriber", "expire": 1800}`)},
 		{"/getToken", http.StatusBadRequest, []byte(`{"tokenType": "invalid_type", "channel": "channel789", "role": "publisher", "uid": "user123", "expire": 3600}`)},
 		{"/getToken", http.StatusBadRequest, []byte(`{"tokenType": "rtc", "role": "publisher", "uid": "user123", "expire": 3600}`)},
 		{"/getToken", http.StatusBadRequest, []byte(`{"tokenType": "rtm", "expire": 1800}`)},
 		{"/getToken", http.StatusBadRequest, []byte(``)},
-		{"/getToken", http.StatusOK, []byte(`{"tokenType": "chat"}`)},
-		{"/getToken", http.StatusOK, []byte(`{"tokenType": "chat", "uid": "user123"}`)},
+		{"/getToken", http.StatusBadRequest, []byte(`{"tokenType": "chat"}`)},
+		{"/getToken", http.StatusUnauthorized, []byte(`{"tokenType": "chat", "uid": "user123"}`)},
 	}
 	for _, httpTest := range tests {
 		testApi, err := http.NewRequest(http.MethodPost, httpTest.url, bytes.NewBuffer(httpTest.body))
@@ -97,12 +97,12 @@ type UrlCodePair struct {
 func TestChatValidAndInvalid(t *testing.T) {
 
 	tests := []UrlCodePair{
-		{"/chat/app/", http.StatusOK, nil},
-		{"/chat/account/username/", http.StatusOK, nil},
+		{"/chat/app/", http.StatusNotFound, nil},
+		{"/chat/account/username/", http.StatusNotFound, nil},
 		{"/chat/account/", http.StatusNotFound, nil},
 		{"/chat/invalid/", http.StatusNotFound, nil},
-		{"/chat/account/username/?expiry=600", http.StatusOK, nil},
-		{"/chat/account/username/?expiry=fail", http.StatusBadRequest, nil},
+		{"/chat/account/username/?expiry=600", http.StatusNotFound, nil},
+		{"/chat/account/username/?expiry=fail", http.StatusNotFound, nil},
 	}
 	for _, httpTest := range tests {
 		testApi, err := http.NewRequest(http.MethodGet, httpTest.url, nil)

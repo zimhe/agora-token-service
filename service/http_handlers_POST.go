@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/AgoraIO-Community/go-tokenbuilder/chatTokenBuilder"
 	rtctokenbuilder2 "github.com/AgoraIO-Community/go-tokenbuilder/rtctokenbuilder"
@@ -86,6 +87,23 @@ func (s *Service) GetToken(w http.ResponseWriter, r *http.Request) {
 	case "rtm":
 		token, tokenErr = s.GenRtmToken(tokenReq)
 	case "chat":
+		if tokenReq.Uid == "" {
+			http.Error(w, "Chat user ID is required", http.StatusBadRequest)
+			return
+		}
+		if err := s.verifyUnityPlayer(r.Context(), r.Header.Get("Authorization"), tokenReq.Uid); err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		tokenReq.Uid = strings.ToLower(tokenReq.Uid)
+		if !chatUsernamePattern.MatchString(tokenReq.Uid) {
+			http.Error(w, "Invalid Chat user ID", http.StatusBadRequest)
+			return
+		}
+		if err := s.ensureChatUser(r.Context(), tokenReq.Uid); err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
 		token, tokenErr = s.GenChatToken(tokenReq)
 	default:
 		http.Error(w, "Unsupported tokenType", http.StatusBadRequest)

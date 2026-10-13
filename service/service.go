@@ -26,6 +26,10 @@ type Service struct {
 
 	// appCertificate is the certificate used by the application.
 	appCertificate string
+	chatRESTHost   string
+	unityProjectID string
+	unityAuthURL   string
+	httpClient     *http.Client
 
 	// allowOrigin specifies the allowed origin for Cross-Origin Resource Sharing (CORS).
 	allowOrigin string
@@ -87,6 +91,10 @@ func NewService() *Service {
 		},
 		appID:          appIDEnv,
 		appCertificate: appCertEnv,
+		chatRESTHost:   os.Getenv("CHAT_REST_HOST"),
+		unityProjectID: os.Getenv("UNITY_PROJECT_ID"),
+		unityAuthURL:   "https://player-auth.services.api.unity.com",
+		httpClient:     &http.Client{Timeout: 10 * time.Second},
 		allowOrigin:    corsAllowOrigin,
 	}
 
@@ -98,8 +106,8 @@ func NewService() *Service {
 	api.GET("rtm/:rtmuid/", s.getRtmToken)
 	api.GET("rte/:channelName/:role/:tokenType/:rtcuid/", s.getRtcRtmToken)
 	api.GET("rte/:channelName/:role/:tokenType/:rtcuid/:rtmuid/", s.getRtcRtmToken)
-	api.GET("chat/app/", s.getChatToken)             // Chat token for API calls
-	api.GET("chat/account/:chatid/", s.getChatToken) // Chat token for SDK calls
+	// Chat app tokens must never be served to clients. Chat user tokens are
+	// issued by POST /getToken only after Unity player verification.
 	api.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",
