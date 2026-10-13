@@ -13,12 +13,26 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Service is Ravelin backend service
+// Service represents the main application service.
 type Service struct {
-	Server         *http.Server
-	Sigint         chan os.Signal
-	appID          string
+	// Server is the HTTP server for the application.
+	Server *http.Server
+
+	// Sigint is a channel to handle OS signals, such as Ctrl+C.
+	Sigint chan os.Signal
+
+	// appID is the identifier for the application.
+	appID string
+
+	// appCertificate is the certificate used by the application.
 	appCertificate string
+	chatRESTHost   string
+	unityProjectID string
+	unityAuthURL   string
+	httpClient     *http.Client
+
+	// allowOrigin specifies the allowed origin for Cross-Origin Resource Sharing (CORS).
+	allowOrigin string
 }
 
 // Stop service safely, closing additional connections if needed.
@@ -55,6 +69,8 @@ func NewService() *Service {
 	appIDEnv, appIDExists := os.LookupEnv("APP_ID")
 	appCertEnv, appCertExists := os.LookupEnv("APP_CERTIFICATE")
 	serverPort, serverPortExists := os.LookupEnv("SERVER_PORT")
+	corsAllowOrigin, _ := os.LookupEnv("CORS_ALLOW_ORIGIN")
+
 	if !appIDExists || !appCertExists || len(appIDEnv) == 0 || len(appCertEnv) == 0 {
 		log.Fatal("FATAL ERROR: ENV not properly configured, check .env file or APP_ID and APP_CERTIFICATE")
 	}
@@ -75,15 +91,29 @@ func NewService() *Service {
 		},
 		appID:          appIDEnv,
 		appCertificate: appCertEnv,
+		chatRESTHost:   os.Getenv("CHAT_REST_HOST"),
+		unityProjectID: os.Getenv("UNITY_PROJECT_ID"),
+		unityAuthURL:   "https://player-auth.services.api.unity.com",
+		httpClient:     &http.Client{Timeout: 10 * time.Second},
+		allowOrigin:    corsAllowOrigin,
 	}
 
 	api := gin.Default()
 
+	api.Use(s.nocache())
+	api.Use(s.CORSMiddleware())
 	api.GET("rtc/:channelName/:role/:tokenType/:rtcuid/", s.getRtcToken)
 	api.GET("rtm/:rtmuid/", s.getRtmToken)
 	api.GET("rte/:channelName/:role/:tokenType/:rtcuid/", s.getRtcRtmToken)
 	api.GET("rte/:channelName/:role/:tokenType/:rtcuid/:rtmuid/", s.getRtcRtmToken)
-
+	// Chat app tokens must never be served to clients. Chat user tokens are
+	// issued by POST /getToken only after Unity player verification.
+	api.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
+	api.POST("/getToken", s.getToken)
 	s.Server.Handler = api
 	return s
 }

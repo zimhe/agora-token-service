@@ -2,7 +2,7 @@ services:
   - type: web
     name: Agora Token Server
     env: docker
-    repo: https://github.com/AgoraIO-Community/agora-token-service.git
+    repo: https://github.com/zimhe/agora-token-service.git
     rootDir: .
     plan: free
     envVars:
@@ -10,3 +10,9 @@ services:
         sync: false
       - key: APP_CERTIFICATE
         sync: false
+      - key: CHAT_REST_HOST
+        sync: false
+      - key: UNITY_PROJECT_ID
+        sync: false
+      - key: CORS_ALLOW_ORIGIN
+        value: "*"
