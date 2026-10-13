@@ -13,12 +13,22 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Service is Ravelin backend service
+// Service represents the main application service.
 type Service struct {
-	Server         *http.Server
-	Sigint         chan os.Signal
-	appID          string
+	// Server is the HTTP server for the application.
+	Server *http.Server
+
+	// Sigint is a channel to handle OS signals, such as Ctrl+C.
+	Sigint chan os.Signal
+
+	// appID is the identifier for the application.
+	appID string
+
+	// appCertificate is the certificate used by the application.
 	appCertificate string
+
+	// allowOrigin specifies the allowed origin for Cross-Origin Resource Sharing (CORS).
+	allowOrigin string
 }
 
 // Stop service safely, closing additional connections if needed.
@@ -55,6 +65,8 @@ func NewService() *Service {
 	appIDEnv, appIDExists := os.LookupEnv("APP_ID")
 	appCertEnv, appCertExists := os.LookupEnv("APP_CERTIFICATE")
 	serverPort, serverPortExists := os.LookupEnv("SERVER_PORT")
+	corsAllowOrigin, _ := os.LookupEnv("CORS_ALLOW_ORIGIN")
+
 	if !appIDExists || !appCertExists || len(appIDEnv) == 0 || len(appCertEnv) == 0 {
 		log.Fatal("FATAL ERROR: ENV not properly configured, check .env file or APP_ID and APP_CERTIFICATE")
 	}
@@ -75,15 +87,25 @@ func NewService() *Service {
 		},
 		appID:          appIDEnv,
 		appCertificate: appCertEnv,
+		allowOrigin:    corsAllowOrigin,
 	}
 
 	api := gin.Default()
 
+	api.Use(s.nocache())
+	api.Use(s.CORSMiddleware())
 	api.GET("rtc/:channelName/:role/:tokenType/:rtcuid/", s.getRtcToken)
 	api.GET("rtm/:rtmuid/", s.getRtmToken)
 	api.GET("rte/:channelName/:role/:tokenType/:rtcuid/", s.getRtcRtmToken)
 	api.GET("rte/:channelName/:role/:tokenType/:rtcuid/:rtmuid/", s.getRtcRtmToken)
-
+	api.GET("chat/app/", s.getChatToken)             // Chat token for API calls
+	api.GET("chat/account/:chatid/", s.getChatToken) // Chat token for SDK calls
+	api.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
+	api.POST("/getToken", s.getToken)
 	s.Server.Handler = api
 	return s
 }
